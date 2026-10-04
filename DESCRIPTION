@@ -1,0 +1,48 @@
+Package: quardplot
+Type: Package
+Title: Aligned Genome-Wide, Regional, Gene and Linkage Disequilibrium Plots for GWAS
+Version: 2.0.0
+Authors@R:
+    person("Sujeevan", "Rajendran", email = "wonpmblab@gmail.com",
+           role = c("aut", "cre"))
+Description: Reads GWAS summary statistics, GFF3/GTF gene annotations and
+    genotypes (VCF or TASSEL HapMap files) and draws
+    vertically aligned panels: a genome-wide Manhattan plot, a regional
+    association plot coloured by linkage disequilibrium (LD) with the lead
+    variant, a gene-structure track and a pairwise LD heatmap. Every panel
+    is available as a separate function returning a 'ggplot2' object, so
+    panels can be customised and combined freely. LD (r-squared and D') is
+    computed internally from genotypes, either as the squared correlation
+    of allele dosages or from haplotype frequencies estimated by the
+    expectation-maximisation algorithm, and haplotype blocks can be
+    identified with the confidence-interval method of Gabriel et al. (2002)
+    <doi:10.1126/science.1069424> as implemented in Haploview and PLINK 1.9,
+    so an external block file is optional. Chromosome lengths and naming
+    are taken from the input files or from built-in presets, so no source
+    code needs to be edited for a new species. Figures are written as PDF;
+    tables of the genes, SNPs (with their location relative to genes) and
+    pairwise LD of the plotted region are written as CSV or Excel files.
+License: MIT + file LICENSE
+URL: https://github.com/sujee119/quard_plot
+BugReports: https://github.com/sujee119/quard_plot/issues
+Encoding: UTF-8
+Depends:
+    R (>= 4.1.0)
+Imports:
+    data.table (>= 1.14.0),
+    ggplot2 (>= 3.4.0),
+    grDevices,
+    grid,
+    patchwork (>= 1.1.0),
+    stats,
+    utils
+Suggests:
+    ape,
+    knitr,
+    rmarkdown,
+    testthat (>= 3.0.0),
+    writexl
+VignetteBuilder: knitr
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.0

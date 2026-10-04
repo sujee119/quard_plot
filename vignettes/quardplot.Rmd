@@ -1,0 +1,117 @@
+---
+title: "Getting started with quardplot"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Getting started with quardplot}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 8, dev = "png",
+                      dpi = 96, fig.retina = 1)
+if (Sys.info()[["sysname"]] == "Linux" && isTRUE(capabilities("cairo"))) options(bitmapType = "cairo")
+```
+
+quardplot makes aligned locus figures and tables from GWAS results, a gene
+annotation (GFF3 or GTF) and genotypes (VCF or HapMap). This vignette runs the
+main steps on a small simulated rice data set. For a longer, step-by-step
+guide with your own files, run `quard_guide()`: it copies the guide
+`quard_plot_examples.R` into your folder.
+
+## 1. Choose the species
+
+The species gives the chromosome lengths of the reference genome for the
+genome-wide plots.
+
+```{r}
+library(quardplot)
+list_species()[, c("species", "reference_genome", "chromosomes")]
+set_species("rice")
+```
+
+For a species that is not built in, give its chromosome lengths, for example
+`set_species("pepper", chrom_sizes = "pepper_genome.fa.fai")`.
+
+## 2. Input files and checks
+
+`simulate_example_data()` writes files with the same structure as real data:
+GWAS results (GAPIT-style CSV), a GFF3 annotation, a VCF and a HapMap file.
+
+```{r}
+ex <- simulate_example_data(file.path(tempdir(), "qp_vignette"))
+my <- list(gwas = ex$gwas, gff = ex$gff, vcf = ex$vcf, hapmap = ex$complete_hapmap)
+check_inputs(my)
+```
+
+## 3. The locus figure and tables
+
+```{r, fig.height = 9}
+out <- file.path(tempdir(), "qp_vignette_out")
+res <- quard_plot(my$gwas, my$gff, my$vcf, chr = ex$chr, pos = ex$pos,
+                  output = file.path(out, "locus.pdf"), verbose = FALSE)
+res
+res$plot
+```
+
+The tables are written next to the PDF. The SNP table gives, for every GWAS
+SNP in the region, its P value, its r^2^ with the lead SNP and where it lies
+relative to the nearest gene:
+
+```{r}
+head(res$snp_table[, c("SNP", "POS", "P", "R2_WITH_LEAD", "GENE", "LOCATION", "FEATURE")])
+```
+
+Panels and tables are chosen independently, so the LD table can be written
+without the heatmap, or tables can be written without any figure:
+
+```{r}
+r2 <- quard_plot(my$gwas, my$gff, my$vcf, chr = ex$chr, pos = ex$pos,
+                 panels = c("regional", "genes"), tables = c("snps", "ld"),
+                 output = file.path(out, "locus_no_heatmap.pdf"), verbose = FALSE)
+names(r2$files)
+```
+
+With `table_format = "xlsx"` (needs the writexl package) all tables are put in
+one Excel file with a README sheet.
+
+## 4. LD and LD blocks
+
+```{r}
+g <- genotype_qc(read_vcf(my$vcf, chr = 9, verbose = FALSE), verbose = FALSE)
+ld <- calc_ld(g)                       # r2 as in PLINK 1.9 --r2
+blocks <- find_ld_blocks(g, verbose = FALSE)   # Gabriel method, as in PLINK --blocks
+head(blocks[, c("chr", "start", "end", "kb", "nsnps")])
+```
+
+## 5. Where SNPs lie relative to genes
+
+```{r}
+a <- annotate_variants(g, my$gff)
+table(a$location)
+```
+
+## 6. Other tools
+
+```{r, fig.height = 4}
+genes <- get_genes(my$gff, chr = 9, pos = ex$pos, flank = 20000, verbose = FALSE)
+genes[, c("gene_id", "start", "end", "strand", "distance_bp")]
+plot_gene_structure(my$gff, genes$gene_id[1], flank = 2000, variants = my$vcf)
+```
+
+```{r, fig.height = 6}
+plot_karyotype(my$hapmap, bin_size = 2e6, verbose = FALSE)
+```
+
+```{r, fig.height = 7}
+tr <- hapmap_tree(my$hapmap, file.path(out, "tree.pdf"), k = 4, verbose = FALSE)
+tr$plot
+```
+
+## 7. From a terminal
+
+```
+Rscript -e "quardplot::quard_cli()" --help
+Rscript -e "quardplot::quard_cli()" --species rice --gwas gwas.csv --gff genes.gff3 \
+        --vcf genotypes.vcf.gz --target top --out results/locus.pdf
+```
