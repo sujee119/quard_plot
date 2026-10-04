@@ -1,74 +1,107 @@
-# quard_plot
+# quardplot
 
-A biologist-friendly GWAS-LD-Gene visualization tool.
+Figures and tables for a GWAS locus, made with R.
 
-`quard_plot` is an R script designed to simplify genomic data exploration by fusing genome-wide association study (GWAS) results, GFF3 gene annotations, and Variant Call Format (VCF) data into a highly interpretable, publication-quality 4-panel vector graphic. It allows biologists and agricultural researchers to rapidly pinpoint functional candidate genes within specific linkage disequilibrium (LD) blocks.
+From your GWAS results, gene annotation (GFF3) and genotypes (VCF or HapMap),
+`quardplot` makes:
 
----
+* **a PDF figure** with up to four panels on one aligned genomic axis: the
+  genome-wide Manhattan plot, a zoom on the locus coloured by linkage
+  disequilibrium (LD) with the lead SNP, the genes of the region and the LD
+  heatmap;
+* **tables** (CSV files, or one Excel file): the genes of the region; every
+  SNP of the region with its P value, LD with the lead SNP, closest gene and
+  whether it lies in an exon, intron, promoter, downstream region or between
+  genes; and the LD between every pair of SNPs;
+* **extra tools**: gene lists for any region, single-gene structure plots,
+  HapMap to VCF conversion, chromosome maps of SNP and indel density, and
+  phylogenetic trees of the individuals with their names.
 
-## Key Visual Panels
+LD (r2, D') and LD blocks are calculated inside R, with the same definitions
+as PLINK 1.9, so PLINK is not needed.
 
-The tool automates base R graphic placement to stack four critical layers into a single `.pdf` output:
-1. **Global Manhattan Plot:** Provides full genome-wide context while highlighting your target locus region using light-grey alignment paths.
-2. **Regional Zoom-In Plot:** Focuses tightly on the target chromosome window to expose local association signals (`-log10(p)`).
-3. **Gene Track:** Parses regional GFF3 files to draw clear gene structures, exon blocks, and coding directions ($+$ vs $-$ strands) for intuitive candidate screening.
-4. **LD Heatmap Block:** Extracts genotypic variants from a VCF matrix, calculates pairwise correlation coefficients ($r^2$), and aligns the resulting diamond-mesh matrix precisely beneath the local signals.
+This is version 2.0.0, the first release as an R package; `NEWS.md` lists the
+changes since the original script (version 1.0.0).
 
----
+## Install
 
-## Required Setup
+1. Install R (version 4.1 or newer) and, once, the packages quardplot needs:
 
-This script uses optimized core data tables. Before running the function, ensure you have installed the required dependencies in your R environment:
+   ```r
+   install.packages(c("data.table", "ggplot2", "patchwork"))
+   install.packages("writexl")   # optional: Excel (.xlsx) tables
+   install.packages("ape")       # optional: faster trees for more than 400 samples
+   ```
 
-```R
-install.packages(c("data.table", "utils", "stats", "grDevices", "graphics"))
+2. Install quardplot, either directly from GitHub:
 
+   ```r
+   install.packages("remotes")
+   remotes::install_github("sujee119/quard_plot")
+   ```
 
-Input File Formats
-To ensure flawless parsing, prepare your data matrices to match the following structural formats:
+   or from the release file `quardplot_2.0.0.tar.gz` (no compiler or Rtools
+   needed, also on Windows and macOS):
 
-GWAS File (.csv / Comma-separated): Contains structural mapping coordinates. The tool automatically detects single-string arrays (e.g., Chr1,1250432,1e-5) as well as clear multi-column headers.
+   ```r
+   install.packages("quardplot_2.0.0.tar.gz", repos = NULL, type = "source")
+   ```
 
-GFF3 File (.gff / .gff3): Standard tab-delimited annotation file. Ensure the sequence IDs in column 1 use the standard naming scheme matching your target call (e.g., Chr1, Chr2).
+   Give the full path if the file is not in your working directory, e.g.
+   `install.packages("C:/Users/me/Downloads/quardplot_2.0.0.tar.gz", repos = NULL, type = "source")`.
 
-VCF File (.vcf): Standard variant call matrix containing sample genotypes (e.g., 0/0, 0|1, 1|1). The script converts these positions into numerical alleles automatically.
+## Start
 
-Block File (.txt / .csv): A custom structured matrix identifying localized boundary ranges. It must include three specific header columns: CHR, START, and END.
+```r
+library(quardplot)
+quard_guide()                 # copies the step-by-step guide into your folder and opens it
 
-Quick Start Example
-Since quard_plot is contained within a single .r file, you don't need to configure a complex build system. Simply download or clone quard_plot.r, move it to your working directory, and run:
+set_species("rice")           # 1. choose the species: rice, arabidopsis, tomato, human, mouse
 
+# 2. practice data with the same file structure as real data
+ex <- simulate_example_data("practice_data")
+#    example_gwas.csv, example_genes.gff3, example_region.vcf.gz, example_complete.hmp.txt, ...
 
-# 1. Source the visualization tool
-source("quard_plot.r")
+check_inputs(list(gwas = ex$gwas, gff = ex$gff, vcf = ex$vcf))     # 3. check the files
 
-# 2. Configure paths to your genomic dataset files
-gwas_input  <- "data/rice_gwas_results.csv"
-gff_input   <- "data/Oryza_sativa.IRGSP-1.0.gff3"
-vcf_input   <- "data/target_region.vcf"
-block_input <- "data/ld_blocks.txt"
+res <- quard_plot(ex$gwas, ex$gff, ex$vcf, chr = ex$chr, pos = ex$pos,   # 4. figure + tables
+                  output = "results/locus.pdf")
+```
 
-# 3. Generate your 4-panel locus figure (e.g., targeting a locus on Chromosome 1)
-quard_plot(
-  gwas_file        = gwas_input,
-  gff_file         = gff_input,
-  vcf_file         = vcf_input,
-  block_file_path  = block_input,
-  target_snp_chr   = 1,
-  target_snp_pos   = 23405000,
-  output_name      = "Chr1_Candidate_Locus_Plot.pdf"
-)
+![Example output of quard_plot() on the simulated practice data](man/figures/README-locus.png)
 
+The figure above is the PDF made by these lines (shown here as an image). The
+region is the LD block that contains the SNP of interest; SNPs are coloured by
+their r2 with that SNP, and crosses mark SNPs without genotype data. The same
+call wrote `locus_genes.txt`, `locus_SNPs.csv` (every SNP with its P value, r2
+and location relative to the nearest gene), `locus_LD_r2.csv` and a README
+describing the files.
 
-+-------------------+-------------+---------------------------------------------------------------------------------+
-| Variable Name     | Class       | Description                                                                     |
-+-------------------+-------------+---------------------------------------------------------------------------------+
-| gwas_file         | character   | File path pointing to your background GWAS data.                                |
-| gff_file         | character   | File path pointing to your reference structural annotations.                   |
-| vcf_file         | character   | File path pointing to your genotypic matrix data.                               |
-| block_file_path   | character   | File path pointing to estimated physical linkage boundaries.                    |
-| target_snp_chr    | numeric     | Target chromosome index (e.g., 1 to 12 for rice).                               |
-| target_snp_pos    | numeric     | Precise base pair coordinate of your target variant.                            |
-| output_name       | character   | The destination filename for your rendered high-resolution PDF file.           |
-|                   |             | Default is "GWAS_Locus_LD_Plot.pdf".                                            |
-+-------------------+-------------+---------------------------------------------------------------------------------+
+With your own files, replace `ex$gwas`, `ex$gff` and `ex$vcf` by your file
+names, e.g. `quard_plot("my_gwas.csv", "genes.gff3", "genotypes.vcf.gz",
+target = "top", output = "results/locus.pdf")`. All files must use the same
+reference genome version, and the genotypes should come from the individuals
+of the GWAS; `check_inputs()` tells you when they do not seem to.
+
+The guide (`quard_guide()`) explains, in plain language, what each input file
+must look like and every function of the package; the vignette
+(`vignette("quardplot")`) shows the main steps. Help for any function:
+`?quard_plot`, `?set_species`, `?check_inputs`, ...
+
+## From a terminal
+
+```
+Rscript -e "quardplot::quard_cli()" --help
+Rscript -e "quardplot::quard_cli()" --species rice --gwas gwas.csv --gff genes.gff3 \
+        --vcf genotypes.vcf --target top --out results/locus.pdf --table-format xlsx
+```
+
+## Citation
+
+If you use quardplot, please cite: Rajendran S, Lee S-J, Kim CM. quardplot: an
+R package for aligned GWAS locus plots with linkage disequilibrium calculated
+from local genotype data (submitted).
+
+## Licence
+
+MIT
