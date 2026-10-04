@@ -10,7 +10,7 @@ vignette: >
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>", fig.width = 7, fig.height = 8, dev = "png",
                       dpi = 96, fig.retina = 1)
-if (isTRUE(capabilities("cairo"))) options(bitmapType = "cairo")
+if (Sys.info()[["sysname"]] == "Linux" && isTRUE(capabilities("cairo"))) options(bitmapType = "cairo")
 ```
 
 quardplot makes aligned locus figures and tables from GWAS results, a gene
