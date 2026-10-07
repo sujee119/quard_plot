@@ -11,11 +11,14 @@ plot_gene_structure(
   flank = 0,
   variants = NULL,
   gwas = NULL,
+  style = c("lollipop", "classic"),
+  variant_labels = c("alleles", "id", "position", "none"),
   exon_numbers = TRUE,
   intron_style = c("hat", "line"),
   coordinates = c("genomic", "relative"),
-  colors = c(CDS = "#2B5C8A", UTR = "#9ECAE1", exon = "#74A9CF"),
-  variant_colors = c(SNP = "#D7191C", indel = "#F2B705"),
+  colors = c(CDS = "#2B5C8A", UTR5 = "#E69F00", UTR3 = "#56B4E9", UTR = "#9ECAE1", exon =
+    "#74A9CF"),
+  variant_colors = c(SNP = "#D55E00", indel = "#CC79A7"),
   label_variants = FALSE,
   chr_map = NULL,
   base_size = 9,
@@ -37,13 +40,21 @@ object, or a data frame with \code{pos} (and optional \code{type}, \code{id}).}
 \item{gwas}{Optional GWAS results (\code{\link[=read_gwas]{read_gwas()}} or file); lollipop
 heights become -log10 P.}
 
-\item{exon_numbers}{Number the exons.}
+\item{style}{\code{"lollipop"} (single gene axis with allele balloons) or
+\code{"classic"} (all transcripts, P-value lollipop track).}
+
+\item{variant_labels}{Text at the top of each balloon (\code{"lollipop"}
+style): \code{"alleles"} (from VCF/HapMap; the variant ID when unknown),
+\code{"id"}, \code{"position"} or \code{"none"}.}
+
+\item{exon_numbers}{Number the exons (\code{"classic"} style).}
 
 \item{intron_style}{\code{"hat"} (angled introns) or \code{"line"}.}
 
 \item{coordinates}{\code{"genomic"} (Mb) or \code{"relative"} (kb from the gene start).}
 
-\item{colors}{Colours for \code{CDS}, \code{UTR} and non-coding \code{exon} boxes.}
+\item{colors}{Colours of the boxes: \code{CDS}, \code{UTR5} and \code{UTR3} (lollipop
+style), \code{UTR} (classic style) and non-coding \code{exon}.}
 
 \item{variant_colors}{Colours for \code{SNP} and \code{indel}.}
 
@@ -60,13 +71,18 @@ A ggplot (or patchwork) object; attribute \code{variants} holds the
 variant table with locations. Save with \code{\link[=save_pdf]{save_pdf()}}.
 }
 \description{
-Draws all (or the representative) transcripts of one gene from a GFF3/GTF
-file: coding exons (tall dark boxes), UTRs (short light boxes), introns
-(lines or "hats"), exon numbers in transcription order and an arrow at
-the transcription start site. Variants from a VCF/HapMap file or GWAS
-results can be added as a lollipop track above the gene; each variant is
-classified as upstream, 5'UTR, CDS, intron, 3'UTR or downstream
-(returned in the \code{variants} attribute).
+Two styles are available. \code{"lollipop"} (default, similar to geneHapR)
+draws the representative transcript on a single gene axis: coding exons
+(CDS), 5' UTRs and 3' UTRs as boxes in different colours on a line that
+stands for the introns and flanking regions, an arrow at the transcription
+start site, and each variant as a "balloon" on a stem whose top carries
+its alleles (\code{A/T}; indels as \verb{-/TTAAA}). Stems fan out so that the labels
+do not overlap; with GWAS results the balloons are coloured by
+-log10 P. \code{"classic"} draws all (or the representative) transcripts with
+exon numbers and a separate lollipop track above the gene, with
+heights = -log10 P. In both styles each variant is classified as
+upstream, 5'UTR, CDS, intron, 3'UTR or downstream (returned in the
+\code{variants} attribute).
 }
 \examples{
 \donttest{
