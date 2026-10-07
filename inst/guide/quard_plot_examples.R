@@ -417,18 +417,29 @@ get_genes(my$gff, regions = my_regions, output = file.path(out, "9_genes_two_reg
 # -----------------------------------------------------------------------------
 # GENE was chosen in step 3 (the gene closest to your SNP). For another gene, type
 # its ID here, e.g. GENE <- "LOC_Os09g20020"  (a gene ID, not a transcript ID such as ...20020.1)
+#
+# The gene is drawn on one axis: CDS, 5' UTR and 3' UTR boxes in different colours
+# on a line (introns and flanks), an arrow at the start of the gene, and every
+# variant as a "balloon" whose label gives its alleles (A/T; indels as -/TTAA).
+# With GWAS results the balloons are coloured by -log10(P).
+#   variant_labels = "id"    SNP names instead of alleles ("position", "none")
+#   style = "classic"        all transcripts, with a P-value track above the gene
 if (!is.na(GENE)) {
   p1 <- plot_gene_structure(genes, GENE)                         # exons, introns, UTRs
   save_pdf(p1, file.path(out, "10_gene_structure.pdf"), width = 170, height = 70)
 
   p2 <- plot_gene_structure(genes, GENE, flank = 2000,           # + 2 kb on each side
-                            variants = my$vcf, gwas = gw)        # + SNPs and their P values
+                            variants = my$vcf, gwas = gw)        # + SNPs, coloured by P value
   save_pdf(p2, file.path(out, "10_gene_with_snps.pdf"), width = 170, height = 100)
-  print(attr(p2, "variants"))                                    # each SNP: promoter, CDS, intron, ...
+  print(attr(p2, "variants"))                                    # each SNP: alleles, promoter, CDS, intron, ...
 
   p3 <- plot_gene_structure(genes, GENE, flank = 2000, variants = my$hapmap,
                             coordinates = "relative")            # positions from the gene start
   save_pdf(p3, file.path(out, "10_gene_hapmap.pdf"), width = 170, height = 100)
+
+  p4 <- plot_gene_structure(genes, GENE, flank = 2000, variants = my$vcf, gwas = gw,
+                            style = "classic")                   # all transcripts + P-value track
+  save_pdf(p4, file.path(out, "10_gene_classic.pdf"), width = 170, height = 100)
 }
 
 
