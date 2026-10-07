@@ -50,7 +50,7 @@ read_gwas <- function(file, snp_col = NULL, chr_col = NULL, pos_col = NULL, p_co
     .check_file(file, "GWAS")
     src <- basename(file)
     first <- readLines(file, n = 1L, warn = FALSE)
-    if (grepl("^[[:space:]]*\".*[,;\t].*\"[[:space:]]*$", first)) {
+    if (grepl("^[[:space:]]*\"[^\"]*[,;\t][^\"]*\"[[:space:]]*$", first)) {
       # Whole rows stored as quoted strings ("SNP1,Chr1,1250432,1e-5"), as
       # handled by the original script: remove the outer quotes and split.
       txt <- readLines(file, warn = FALSE)

@@ -1,8 +1,9 @@
 Package: quardplot
 Type: Package
-Title: Aligned Genome-Wide, Regional, Gene and Linkage Disequilibrium Plots for GWAS
+Title: Aligned Genome-Wide, Regional, Gene and Linkage Disequilibrium
+        Plots for GWAS
 Version: 2.0.0
-Authors@R:
+Authors@R: 
     person("Sujeevan", "Rajendran", email = "wonpmblab@gmail.com",
            role = c("aut", "cre"))
 Description: Reads GWAS summary statistics, GFF3/GTF gene annotations and
@@ -26,23 +27,15 @@ License: MIT + file LICENSE
 URL: https://github.com/sujee119/quard_plot
 BugReports: https://github.com/sujee119/quard_plot/issues
 Encoding: UTF-8
-Depends:
-    R (>= 4.1.0)
-Imports:
-    data.table (>= 1.14.0),
-    ggplot2 (>= 3.4.0),
-    grDevices,
-    grid,
-    patchwork (>= 1.1.0),
-    stats,
-    utils
-Suggests:
-    ape,
-    knitr,
-    rmarkdown,
-    testthat (>= 3.0.0),
-    writexl
+Depends: R (>= 4.1.0)
+Imports: data.table (>= 1.14.0), ggplot2 (>= 3.4.0), grDevices, grid,
+        patchwork (>= 1.1.0), stats, utils
+Suggests: ape, knitr, rmarkdown, testthat (>= 3.0.0), writexl
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)
 Config/roxygen2/version: 8.1.0
+NeedsCompilation: no
+Packaged: 2026-10-06 07:31:56 UTC; root
+Author: Sujeevan Rajendran [aut, cre]
+Maintainer: Sujeevan Rajendran <wonpmblab@gmail.com>

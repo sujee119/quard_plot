@@ -57,6 +57,7 @@ library(quardplot)
 quard_guide()                 # copies the step-by-step guide into your folder and opens it
 
 set_species("rice")           # 1. choose the species: rice, arabidopsis, tomato, human, mouse
+# other species: set_species("my_species", chrom_sizes = "genome.fa.fai")  # or a two-column file: chromosome, length
 
 # 2. practice data with the same file structure as real data
 ex <- simulate_example_data("practice_data")
