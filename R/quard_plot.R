@@ -302,10 +302,12 @@ quard_plot <- function(gwas, gff = NULL, vcf = NULL, blocks = NULL, chr = NULL, 
       } else {
         li <- which.min(abs(geno$info$pos - tgt$pos))
       }
-      .msg(verbose, "Lead SNP ", lead_snp, " is not among the genotyped variants that passed QC; LD is ",
+      # The lead SNP stays the labelled SNP of the figure; only the LD colours,
+      # the LD heatmap mark and the r2 column use the genotyped proxy.
+      .msg(verbose, "Lead SNP ", lead_snp, " is not among the genotyped variants that passed QC ",
+           "(not in the genotype file, or removed by the MAF/missing-call filters); r2 colours are ",
            "shown relative to ", ifelse(is.na(geno$info$gwas_snp[li]), geno$info$id[li], geno$info$gwas_snp[li]),
            " instead.")
-      if (!is.na(geno$info$gwas_snp[li])) lead_snp <- geno$info$gwas_snp[li]
     }
     r2v <- ld_with_lead(geno, li)
     has <- !is.na(geno$info$gwas_snp)
@@ -496,7 +498,7 @@ quard_plot <- function(gwas, gff = NULL, vcf = NULL, blocks = NULL, chr = NULL, 
     }
   }
   key_of <- function(nm) if (nm == "SNPs") "snps" else if (grepl("_pairs$", nm)) "ld_pairs" else "ld_matrix"
-  info <- list(reg = reg, lead = lead_snp, lead_p = if (!is.na(lead_snp)) gwr$p[match(lead_snp, gwr$snp)] else NA,
+  info <- list(reg = reg, lead = lead_snp, ld_ref = lead_ld_id, lead_p = if (!is.na(lead_snp)) gwr$p[match(lead_snp, gwr$snp)] else NA,
                th = th, up = upstream_bp, down = downstream_bp, ld_tag = ld_tag,
                settings = sprintf(paste("region = %s; min_maf = %s; max_missing = %s; ld_method = %s;",
                                         "ld_stat = %s; ld_r2 = %s; max_ld_snps = %s"),
@@ -665,6 +667,8 @@ quard_plot <- function(gwas, gff = NULL, vcf = NULL, blocks = NULL, chr = NULL, 
                         .fmt(round(core[1])), .fmt(round(core[2])), reg$source %||% "user-defined",
                         .fmt(round(reg$start)), .fmt(round(reg$end)))),
     c("Lead SNP", if (is.na(info$lead)) "none" else sprintf("%s (P = %s)", info$lead, format(info$lead_p, digits = 3))),
+    if (!is.null(info$ld_ref) && !is.na(info$lead) && !identical(info$ld_ref, info$lead))
+      c("LD reference", sprintf("%s (the lead SNP has no genotypes after QC, so r2 values refer to this SNP)", info$ld_ref)),
     if (!is.null(info$th)) c("Significance line", sprintf("%s (-log10 P = %s)", info$th$label, round(info$th$logp, 2))),
     c("Gene windows", sprintf("promoter (upstream) = %s bp before the gene start; downstream = %s bp after the gene end",
                               .fmt(info$up), .fmt(info$down))))
