@@ -656,6 +656,12 @@ hapmap_tree <- function(file, output = "tree.pdf", max_snps = 10000, min_maf = 0
     g <- read_genotypes(file, every = every, verbose = verbose)
   }
   g <- genotype_qc(g, min_maf = min_maf, max_missing = max_missing, snps_only = FALSE, verbose = verbose)
+  empty <- colSums(!is.na(g$dosage)) == 0
+  if (any(empty)) {
+    .warn(sum(empty), " sample(s) have no called genotype and were left out of the tree: ",
+          paste(utils::head(g$samples[empty], 10), collapse = ", "), if (sum(empty) > 10) ", ..." else "", ".")
+    g <- .geno_keep_samples(g, !empty)
+  }
   D <- genetic_distance(g, distance)
   tr <- build_tree(D, method)
   fixed <- if (is.null(width) && is.null(height)) NULL else c(width %||% NA_real_, height %||% NA_real_)

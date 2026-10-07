@@ -65,7 +65,7 @@
   repeat {
     x <- readLines(con, n = chunk_size, warn = FALSE)
     if (!length(x)) break
-    x <- x[nzchar(x)]
+    x <- x[nzchar(x) & !startsWith(x, "#")]   # also drops header lines of VCFs pasted together
     if (is.null(tchr)) {
       k <- k + 1L
       out[[k]] <- thin(x)
@@ -167,6 +167,17 @@
   g
 }
 
+# Keep only some samples (columns) of a genotype object.
+.geno_keep_samples <- function(g, keep) {
+  g$dosage <- g$dosage[, keep, drop = FALSE]
+  g$samples <- g$samples[keep]
+  if (!is.null(g$hap1)) {
+    g$hap1 <- g$hap1[, keep, drop = FALSE]
+    g$hap2 <- g$hap2[, keep, drop = FALSE]
+  }
+  g
+}
+
 #' @export
 print.qp_geno <- function(x, ...) {
   cat(sprintf("<qp_geno> %s variant(s) x %s sample(s)%s\n", .fmt(nrow(x$info)), .fmt(length(x$samples)),
@@ -249,10 +260,18 @@ read_vcf <- function(file, chr = NULL, start = NULL, end = NULL, samples = NULL,
   }
   smp <- cols[-(1:9)]
   keep_s <- rep(TRUE, length(smp))
+  # Columns after FORMAT that are named like the fixed VCF columns (e.g. left
+  # over when two files were merged) hold no genotypes: leave them out.
+  junk <- grepl("^#?(CHROM|POS|ID|REF|ALT|QUAL|FILTER|INFO.*|FORMAT)$", smp, ignore.case = TRUE)
+  if (any(junk)) {
+    .warn("VCF '", basename(file), "': column(s) ", paste(smp[junk], collapse = ", "), " after FORMAT are ",
+          "not samples (they look like extra VCF columns, e.g. from merging two files) and were ignored.")
+    keep_s <- !junk
+  }
   if (!is.null(samples)) {
     miss <- setdiff(samples, smp)
     if (length(miss)) .warn(length(miss), " requested sample(s) not in the VCF: ", paste(utils::head(miss, 5), collapse = ", "))
-    keep_s <- smp %in% samples
+    keep_s <- smp %in% samples & keep_s
     if (!any(keep_s)) .stop("None of the requested samples are in the VCF.")
   }
   where <- if (is.null(ra$tchr)) "" else sprintf(" in chr %s:%s-%s", ra$tchr, .fmt(max(1, ra$start)),

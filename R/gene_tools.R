@@ -210,13 +210,18 @@ get_genes <- function(gff, chr = NULL, start = NULL, end = NULL, pos = NULL, fla
 
 #' Plot the structure of a single gene
 #'
-#' Draws all (or the representative) transcripts of one gene from a GFF3/GTF
-#' file: coding exons (tall dark boxes), UTRs (short light boxes), introns
-#' (lines or "hats"), exon numbers in transcription order and an arrow at
-#' the transcription start site. Variants from a VCF/HapMap file or GWAS
-#' results can be added as a lollipop track above the gene; each variant is
-#' classified as upstream, 5'UTR, CDS, intron, 3'UTR or downstream
-#' (returned in the `variants` attribute).
+#' Two styles are available. `"lollipop"` (default, similar to geneHapR)
+#' draws the representative transcript on a single gene axis: coding exons
+#' (CDS), 5' UTRs and 3' UTRs as boxes in different colours on a line that
+#' stands for the introns and flanking regions, an arrow at the transcription
+#' start site, and each variant as a "balloon" on a stem whose top carries
+#' its alleles (`A/T`; indels as `-/TTAAA`). Stems fan out so that the labels
+#' do not overlap; with GWAS results the balloons are coloured by
+#' -log10 P. `"classic"` draws all (or the representative) transcripts with
+#' exon numbers and a separate lollipop track above the gene, with
+#' heights = -log10 P. In both styles each variant is classified as
+#' upstream, 5'UTR, CDS, intron, 3'UTR or downstream (returned in the
+#' `variants` attribute).
 #'
 #' @param gff GFF3/GTF file or [read_gff()] output.
 #' @param gene Gene ID, gene name or transcript ID (e.g. `"LOC_Os09g12345"`).
@@ -226,10 +231,16 @@ get_genes <- function(gff, chr = NULL, start = NULL, end = NULL, pos = NULL, fla
 #'   object, or a data frame with `pos` (and optional `type`, `id`).
 #' @param gwas Optional GWAS results ([read_gwas()] or file); lollipop
 #'   heights become -log10 P.
-#' @param exon_numbers Number the exons.
+#' @param style `"lollipop"` (single gene axis with allele balloons) or
+#'   `"classic"` (all transcripts, P-value lollipop track).
+#' @param variant_labels Text at the top of each balloon (`"lollipop"`
+#'   style): `"alleles"` (from VCF/HapMap; the variant ID when unknown),
+#'   `"id"`, `"position"` or `"none"`.
+#' @param exon_numbers Number the exons (`"classic"` style).
 #' @param intron_style `"hat"` (angled introns) or `"line"`.
 #' @param coordinates `"genomic"` (Mb) or `"relative"` (kb from the gene start).
-#' @param colors Colours for `CDS`, `UTR` and non-coding `exon` boxes.
+#' @param colors Colours of the boxes: `CDS`, `UTR5` and `UTR3` (lollipop
+#'   style), `UTR` (classic style) and non-coding `exon`.
 #' @param variant_colors Colours for `SNP` and `indel`.
 #' @param label_variants Label variants with their IDs (useful for few variants).
 #' @param chr_map Optional chromosome name mapping.
@@ -246,11 +257,15 @@ get_genes <- function(gff, chr = NULL, start = NULL, end = NULL, pos = NULL, fla
 #' }
 #' @export
 plot_gene_structure <- function(gff, gene, transcripts = c("all", "canonical"), flank = 0,
-                                variants = NULL, gwas = NULL, exon_numbers = TRUE,
+                                variants = NULL, gwas = NULL, style = c("lollipop", "classic"),
+                                variant_labels = c("alleles", "id", "position", "none"), exon_numbers = TRUE,
                                 intron_style = c("hat", "line"), coordinates = c("genomic", "relative"),
-                                colors = c(CDS = "#2B5C8A", UTR = "#9ECAE1", exon = "#74A9CF"),
-                                variant_colors = c(SNP = "#D7191C", indel = "#F2B705"),
+                                colors = c(CDS = "#2B5C8A", UTR5 = "#E69F00", UTR3 = "#56B4E9",
+                                           UTR = "#9ECAE1", exon = "#74A9CF"),
+                                variant_colors = c(SNP = "#D55E00", indel = "#CC79A7"),
                                 label_variants = FALSE, chr_map = NULL, base_size = 9, title = TRUE) {
+  style <- match.arg(style)
+  variant_labels <- match.arg(variant_labels)
   transcripts <- match.arg(transcripts)
   intron_style <- match.arg(intron_style)
   coordinates <- match.arg(coordinates)
@@ -348,14 +363,21 @@ plot_gene_structure <- function(gff, gene, transcripts = c("all", "canonical"), 
       vt <- data.frame(id = if (!is.null(variants$id)) as.character(variants$id) else paste0(g$chr, ":", variants$pos),
                        pos = as.numeric(variants$pos),
                        type = if (!is.null(variants$type)) as.character(variants$type) else "SNP",
+                       ref = if (!is.null(variants$ref)) as.character(variants$ref) else NA_character_,
+                       alt = if (!is.null(variants$alt)) as.character(variants$alt) else NA_character_,
                        stringsAsFactors = FALSE)
+      if (!is.null(variants$alleles) && is.null(variants$ref)) {
+        al <- strsplit(as.character(variants$alleles), "/", fixed = TRUE)
+        vt$ref <- vapply(al, function(z) z[1], "")
+        vt$alt <- vapply(al, function(z) paste(z[-1], collapse = ","), "")
+      }
     } else {
       gv <- if (inherits(variants, "qp_geno")) variants else
         read_genotypes(variants, chr = g$chr, start = r0, end = r1, chr_map = chr_map, verbose = FALSE)
       inf <- gv$info
       inf <- inf[inf$chr == g$chr & inf$pos >= r0 & inf$pos <= r1, , drop = FALSE]
       vt <- data.frame(id = inf$id, pos = inf$pos, type = ifelse(inf$is_snp, "SNP", "indel"),
-                       stringsAsFactors = FALSE)
+                       ref = as.character(inf$ref), alt = as.character(inf$alt), stringsAsFactors = FALSE)
     }
     vt <- vt[vt$pos >= r0 & vt$pos <= r1, , drop = FALSE]
   }
@@ -363,12 +385,17 @@ plot_gene_structure <- function(gff, gene, transcripts = c("all", "canonical"), 
     gw <- .as_gwas(gwas)
     gs <- gw[gw$chr == g$chr & gw$pos >= r0 & gw$pos <= r1, , drop = FALSE]
     if (is.null(vt)) {
-      vt <- data.frame(id = gs$snp, pos = gs$pos, type = "SNP", stringsAsFactors = FALSE)
+      vt <- data.frame(id = gs$snp, pos = gs$pos, type = "SNP", ref = NA_character_, alt = NA_character_,
+                       stringsAsFactors = FALSE)
     }
     vt$logp <- gs$logp[match(vt$pos, gs$pos)]
   }
   canon <- tx$transcript_id[tx$canonical][1]
   if (is.na(canon)) canon <- tx$transcript_id[1]
+  if (style == "lollipop") {
+    return(.gene_lollipop(g, f[f$transcript_id == canon, , drop = FALSE], canon, vt, r0, r1, tr, xlab,
+                          colors, variant_colors, variant_labels, base_size, title))
+  }
   if (!is.null(vt) && nrow(vt)) {
     vt$location <- .variant_location(vt$pos, g, f[f$transcript_id == canon, , drop = FALSE], g$strand)
     vt$type[!vt$type %in% names(variant_colors)] <- "indel"
@@ -642,4 +669,164 @@ annotate_variants <- function(x, genes, chr = NULL, upstream_bp = 3000, downstre
   if (!is.null(extra)) out <- cbind(out, extra)
   rownames(out) <- NULL
   out
+}
+
+# Allele label of a variant: "A/T" for SNPs; for indels the shared padding
+# base of VCF records is removed and an empty allele is written "-"
+# (REF T, ALT TTAAAA -> "-/TAAAA"). Multi-allelic sites list all alleles.
+.allele_label <- function(ref, alt) {
+  out <- rep(NA_character_, length(ref))
+  for (i in seq_along(ref)) {
+    r <- ref[i]
+    a <- alt[i]
+    if (is.na(r) || is.na(a) || !nzchar(r) || !nzchar(a) || a == ".") next
+    al <- c(r, strsplit(a, ",", fixed = TRUE)[[1]])
+    if (any(nchar(al) > 1L) && all(grepl("^[ACGTNacgtn]+$", al)) &&
+        length(unique(toupper(substr(al, 1L, 1L)))) == 1L) {
+      al <- substring(al, 2L)
+    }
+    al[!nzchar(al)] <- "-"
+    out[i] <- paste(al, collapse = "/")
+  }
+  out
+}
+
+# Spread sorted label positions so that neighbours are at least `d` apart
+# inside [lo, hi]; clusters stay centred on their variants.
+.spread_positions <- function(x, d, lo, hi) {
+  n <- length(x)
+  if (n < 2L) return(pmin(pmax(x, lo), hi))
+  o <- order(x)
+  y <- x[o]
+  if ((n - 1) * d > hi - lo) d <- (hi - lo) / (n - 1)
+  pass <- function(v) {
+    for (i in 2:n) v[i] <- max(v[i], v[i - 1] + d)
+    if (v[n] > hi) {
+      v[n] <- hi
+      for (i in (n - 1):1) v[i] <- min(v[i], v[i + 1] - d)
+    }
+    v
+  }
+  left <- pass(y)
+  right <- rev(-pass(rev(-y)))   # the same from the right end
+  if (right[1] < lo) {
+    right[1] <- lo
+    for (i in 2:n) right[i] <- max(right[i], right[i - 1] + d)
+  }
+  out <- numeric(n)
+  out[o] <- (left + right) / 2
+  out
+}
+
+# Gene model on one axis with variants as lollipops ("balloons"), in the
+# style of geneHapR: CDS, 5'UTR and 3'UTR boxes on a line (introns and
+# flanks), stems that fan out so that the allele labels do not overlap.
+.gene_lollipop <- function(g, f, canon, vt, r0, r1, tr, xlab, colors, variant_colors, variant_labels,
+                           base_size, title) {
+  strand <- g$strand
+  ex <- f[f$class == "exon", , drop = FALSE]
+  cds <- f[f$class == "CDS", , drop = FALSE]
+  boxes <- list()
+  if (nrow(cds)) {
+    lo <- min(cds$start)
+    hi <- max(cds$end)
+    boxes[[1]] <- data.frame(start = cds$start, end = cds$end, part = "CDS")
+    for (k in seq_len(nrow(ex))) {
+      s0 <- ex$start[k]
+      e0 <- ex$end[k]
+      if (s0 < lo) boxes[[length(boxes) + 1L]] <- data.frame(start = s0, end = min(e0, lo - 1),
+                                                              part = if (strand == "-") "UTR3" else "UTR5")
+      if (e0 > hi) boxes[[length(boxes) + 1L]] <- data.frame(start = max(s0, hi + 1), end = e0,
+                                                              part = if (strand == "-") "UTR5" else "UTR3")
+    }
+  } else if (nrow(ex)) {
+    boxes[[1]] <- data.frame(start = ex$start, end = ex$end, part = "exon")
+  }
+  bx <- do.call(rbind, boxes)
+  if (is.null(bx)) bx <- data.frame(start = g$start, end = g$end, part = "exon")
+  bx <- bx[bx$end >= bx$start, , drop = FALSE]
+  bx$h <- ifelse(bx$part == "CDS", 0.2, 0.12)
+  part_lab <- c(CDS = "CDS", UTR5 = "5' UTR", UTR3 = "3' UTR", exon = "exon (non-coding)")
+  brk <- intersect(c("CDS", "UTR5", "UTR3", "exon"), bx$part)
+
+  x0 <- tr(r0)
+  x1 <- tr(r1)
+  w <- x1 - x0
+  tss <- if (strand == "-") g$end else g$start
+  dir <- if (strand == "-") -1 else 1
+  # Layers from back to front: gene axis, stems and TSS arrow (both start on
+  # the axis), boxes (which cover the stem parts inside exons), balloons, labels.
+  p <- ggplot2::ggplot() +
+    ggplot2::annotate("segment", x = x0, xend = x1, y = 0, yend = 0, colour = "grey30", linewidth = 0.5)
+  ytop <- 0.6
+  if (!is.null(vt) && nrow(vt)) {
+    vt$location <- .variant_location(vt$pos, g, f, strand)
+    vt$type[!vt$type %in% names(variant_colors)] <- "indel"
+    vt$alleles <- .allele_label(vt$ref, vt$alt)
+    vt$label <- switch(variant_labels,
+                       alleles = ifelse(is.na(vt$alleles), vt$id, vt$alleles),
+                       id = vt$id,
+                       position = .fmt(vt$pos),
+                       none = "")
+    vt <- vt[order(vt$pos), , drop = FALSE]
+    vt$x <- tr(vt$pos)
+    vt$xs <- .spread_positions(vt$x, d = w / 45, lo = x0 + 0.01 * w, hi = x1 - 0.01 * w)
+    y1 <- 0.55
+    y2 <- 1.15
+    y3 <- 1.35
+    stems <- rbind(data.frame(x = vt$x, xend = vt$x, y = 0, yend = y1),
+                   data.frame(x = vt$x, xend = vt$xs, y = y1, yend = y2),
+                   data.frame(x = vt$xs, xend = vt$xs, y = y2, yend = y3))
+    p <- p + ggplot2::geom_segment(data = stems, ggplot2::aes(x = .data$x, xend = .data$xend, y = .data$y,
+                                                              yend = .data$yend),
+                                   colour = "grey45", linewidth = 0.3)
+  }
+  p <- p +
+    ggplot2::annotate("segment", x = tr(tss), xend = tr(tss), y = 0, yend = -0.42, linewidth = 0.4) +
+    ggplot2::annotate("segment", x = tr(tss), xend = tr(tss) + dir * 0.05 * w, y = -0.42, yend = -0.42,
+                      linewidth = 0.4, arrow = grid::arrow(length = grid::unit(1.3, "mm"), type = "closed", angle = 30)) +
+    ggplot2::geom_rect(data = bx, ggplot2::aes(xmin = tr(.data$start), xmax = tr(.data$end + 1),
+                                               ymin = -.data$h, ymax = .data$h, fill = .data$part),
+                       colour = "grey15", linewidth = 0.2) +
+    ggplot2::scale_fill_manual(values = colors, breaks = brk, labels = unname(part_lab[brk]), name = NULL)
+  if (!is.null(vt) && nrow(vt)) {
+    has_p <- !is.null(vt$logp) && any(!is.na(vt$logp))
+    p <- p + ggplot2::geom_point(data = vt, ggplot2::aes(x = .data$xs, y = y3), shape = 21, size = 2.9,
+                                 fill = "grey15", colour = "grey15")
+    if (has_p) {
+      p <- p + ggplot2::geom_point(data = vt, ggplot2::aes(x = .data$xs, y = y3, colour = .data$logp), size = 2.3) +
+        ggplot2::scale_colour_gradient(low = "#FFF5EB", high = "#A50F15", na.value = "grey80",
+                                       name = expression(-log[10](italic(P))))
+    } else {
+      p <- p + ggplot2::geom_point(data = vt, ggplot2::aes(x = .data$xs, y = y3, colour = .data$type), size = 2.3) +
+        ggplot2::scale_colour_manual(values = variant_colors, name = NULL)
+    }
+    if (variant_labels != "none") {
+      p <- p + ggplot2::geom_text(data = vt, ggplot2::aes(x = .data$xs, y = y3 + 0.12, label = .data$label),
+                                  angle = 90, hjust = 0, vjust = 0.5, size = .txt(base_size, 0.75))
+      ytop <- y3 + 0.12 + 0.11 * max(nchar(vt$label), 3)
+    } else {
+      ytop <- y3 + 0.2
+    }
+  }
+  p <- p +
+    ggplot2::coord_cartesian(xlim = c(x0, x1), ylim = c(-0.6, ytop), expand = FALSE, clip = "off") +
+    ggplot2::labs(x = xlab, y = NULL) +
+    theme_quard(base_size) +
+    ggplot2::theme(axis.line.y = ggplot2::element_blank(), axis.ticks.y = ggplot2::element_blank(),
+                   axis.text.y = ggplot2::element_blank(), legend.position = "bottom",
+                   plot.margin = ggplot2::margin(6, 8, 4, 8))
+  if (title) {
+    ttl <- sprintf("%s%s  |  chr %s:%s-%s (%s strand)  |  %s bp  |  transcript %s", g$gene_id,
+                   if (!is.na(g$name) && g$name != g$gene_id) paste0(" (", g$name, ")") else "",
+                   g$chr, .fmt(g$start), .fmt(g$end), g$strand, .fmt(g$end - g$start + 1), canon)
+    sub <- if (!is.na(g$note) && nzchar(g$note)) g$note else NULL
+    p <- p + ggplot2::labs(title = ttl, subtitle = sub) +
+      ggplot2::theme(plot.title = ggplot2::element_text(size = base_size + 1, face = "bold"),
+                     plot.subtitle = ggplot2::element_text(size = base_size - 0.5, colour = "grey30"))
+  }
+  if (!is.null(vt)) vt$x <- vt$xs <- vt$label <- NULL
+  attr(p, "variants") <- vt
+  attr(p, "gene") <- g
+  p
 }
