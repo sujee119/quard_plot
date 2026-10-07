@@ -194,6 +194,8 @@ genes <- read_gff(my$gff, chr = CHR)                              # the genes of
 near <- get_genes(genes, chr = CHR, pos = POS, flank = 100000)    # genes within 100 kb of the SNP
 near                                                              # distance_bp = distance to the SNP
 GENE <- if (nrow(near)) near$gene_id[which.min(near$distance_bp)] else NA   # the closest gene (step 10)
+# To study another gene, type its ID as in the GFF file (see the gene_id column of near), e.g.
+# GENE <- "LOC_Os09g20020"     # check: GENE %in% genes$genes$gene_id should give TRUE
 GENE
 
 
@@ -413,6 +415,8 @@ get_genes(my$gff, regions = my_regions, output = file.path(out, "9_genes_two_reg
 # -----------------------------------------------------------------------------
 # STEP 10. Structure of one gene, with its SNPs
 # -----------------------------------------------------------------------------
+# GENE was chosen in step 3 (the gene closest to your SNP). For another gene, type
+# its ID here, e.g. GENE <- "LOC_Os09g20020"  (a gene ID, not a transcript ID such as ...20020.1)
 if (!is.na(GENE)) {
   p1 <- plot_gene_structure(genes, GENE)                         # exons, introns, UTRs
   save_pdf(p1, file.path(out, "10_gene_structure.pdf"), width = 170, height = 70)
