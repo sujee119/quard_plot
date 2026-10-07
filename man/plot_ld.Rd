@@ -12,7 +12,8 @@ plot_ld(
   label_snps = c("lead", "none", "all"),
   blocks = NULL,
   colors = c("#FFFFFF", "#FEE391", "#FE9929", "#D94701", "#7F2704"),
-  base_size = 8
+  base_size = 8,
+  lead_label = NULL
 )
 }
 \arguments{
@@ -36,6 +37,8 @@ about 60 variants).}
 lightness decreases monotonically, so it also reads in greyscale).}
 
 \item{base_size}{Base font size (pt).}
+
+\item{lead_label}{Text of the label of \code{lead} (default: its ID).}
 }
 \value{
 A ggplot object.
