@@ -378,6 +378,7 @@ plot_genes <- function(genes, region, transcripts = c("canonical", "all"), label
 #' @param max_snps Maximum number of variants drawn; larger sets are thinned
 #'   to evenly spaced variants (the lead is always kept). About 300 is the
 #'   practical upper limit for a readable vector figure.
+#' @param lead_label Text of the label of `lead` (default: its ID).
 #' @param label_snps `"lead"`, `"none"` or `"all"` (only sensible for up to
 #'   about 60 variants).
 #' @param blocks Optional block table (`start`, `end`) to outline.
@@ -388,7 +389,7 @@ plot_genes <- function(genes, region, transcripts = c("canonical", "all"), label
 #' @export
 plot_ld <- function(ld, region = NULL, lead = NULL, max_snps = 300, label_snps = c("lead", "none", "all"),
                     blocks = NULL, colors = c("#FFFFFF", "#FEE391", "#FE9929", "#D94701", "#7F2704"),
-                    base_size = 8) {
+                    base_size = 8, lead_label = NULL) {
   label_snps <- match.arg(label_snps)
   if (inherits(ld, "qp_geno")) ld <- calc_ld(ld)
   pos <- attr(ld, "pos")
@@ -472,7 +473,7 @@ plot_ld <- function(ld, region = NULL, lead = NULL, max_snps = 300, label_snps =
     if (label_snps != "none") {
       rel <- (lc$gx - x0) / (x1 - x0)
       hj <- if (rel < 0.15) 0 else if (rel > 0.85) 1 else 0.5
-      p <- p + ggplot2::annotate("text", x = lc$gx, y = ct + 0.25, label = ids[lead_i], vjust = 0, hjust = hj,
+      p <- p + ggplot2::annotate("text", x = lc$gx, y = ct + 0.25, label = if (is.null(lead_label)) ids[lead_i] else lead_label, vjust = 0, hjust = hj,
                                  size = .txt(base_size, 0.8), fontface = "bold", colour = "#7B3294")
     }
   }

@@ -417,7 +417,9 @@ quard_plot <- function(gwas, gff = NULL, vcf = NULL, blocks = NULL, chr = NULL, 
     } else {
       blk_reg <- if (!is.null(blk) && nrow(blk)) blk[blk$chr == reg$chr & blk$end >= reg$start & blk$start <= reg$end, , drop = FALSE] else NULL
       plist$ld <- plot_ld(ldmat, reg, lead = lead_ld_id, max_snps = max_ld_snps,
-                          label_snps = label_ld_snps, blocks = blk_reg, base_size = base_size)
+                          label_snps = label_ld_snps, blocks = blk_reg, base_size = base_size,
+                          lead_label = if (!is.null(lead_ld_id) && !is.na(lead_snp) && !identical(lead_ld_id, lead_snp))
+                            paste0(lead_ld_id, " (LD reference for ", lead_snp, ")") else NULL)
       hts <- c(hts, 72)
     }
   }
